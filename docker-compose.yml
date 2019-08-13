@@ -1,0 +1,80 @@
+version: '3.1'
+
+networks:
+  default-network:
+    driver: bridge
+
+services:
+  db:
+    container_name: zabbix-container-db
+    build:
+      context: .
+      dockerfile: ./docker/db.dockerfile
+    networks:
+      - default-network
+    ports:
+      - '3306:3306'
+    volumes:
+      - './data:/var/lib/data'
+    environment:
+      - MYSQL_ROOT_PASSWORD=123456789
+      - MYSQL_DATABASE=zabbix
+      - MYSQL_USER=zabbix
+      - MYSQL_PASSWORD=123456789
+
+  server:
+    container_name: zabbix-container-server
+    build:
+      context: .
+      dockerfile: ./docker/server.dockerfile
+    networks:
+      - default-network
+    links:
+      - db
+    ports:
+      - '10050:10050'
+      - '10051:10051'
+    volumes:
+      - './data:/var/lib/data'
+      - './data/zabbix/alertscripts:/usr/lib/zabbix/alertscripts'
+      - './data/zabbix/externalscripts:/usr/lib/zabbix/externalscripts'
+    environment:
+      - DB_SERVER_HOST=db
+      - MYSQL_ROOT_PASSWORD=123456789
+      - MYSQL_DATABASE=zabbix
+      - MYSQL_USER=zabbix
+      - MYSQL_PASSWORD=123456789
+
+  web:
+    container_name: zabbix-container-web
+    build:
+      context: .
+      dockerfile: ./docker/web.dockerfile
+    networks:
+      - default-network
+    links:
+      - db
+    restart: always
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      - DB_SERVER_HOST=db
+      - MYSQL_DATABASE=zabbix
+      - MYSQL_USER=zabbix
+      - MYSQL_PASSWORD=123456789
+      - PHP_TZ=America/Sao_Paulo
+
+  grafana:
+    container_name: grafana-container-web
+    build:
+      context: .
+      dockerfile: ./docker/grafana.dockerfile
+    networks: 
+      - default-network
+    links:
+      - db
+      - server
+    restart: always
+    ports:
+      - '3000:3000'
